@@ -18,14 +18,15 @@
 
 ## ✨ 特性
 
-- 🔐 **隐私保护** - 基于 piexifjs 清洗 EXIF 信息，保持原图质量
+- 🔐 **隐私保护** - 纯本地清洗 EXIF 信息（GPS、设备型号等），绝不上传隐私数据
 - 📦 **零冲突** - 使用 peerDependencies，避免 Vue/Octokit 多实例问题
-- 🎨 **iOS 风格 UI** - 现代化设计，支持亮色/暗色主题自动切换
-- 🚀 **极速加载** - Manifest 索引 + Stale-While-Revalidate 策略
+- 🎨 **iOS 风格 UI** - 现代化设计，移动端适配优化，支持亮色/暗色主题
+- 🚀 **极速加载** - Manifest 索引 + 智能缩略图缓存复用策略
 - ☁️ **CDN 加速** - wsrv.nl 主用 + statically.io 备用，自动降级
 - 📁 **文件夹管理** - 支持创建子目录分类管理图片
 - 🖱️ **拖拽上传** - 内置拖拽区域，支持批量上传
 - 📋 **多格式复制** - 支持 URL / Markdown / HTML 格式
+- 🛠️ **工具导出** - 提供独立的 `cleanupExifFromFile` 工具函数
 
 ## 📦 安装
 
@@ -94,6 +95,25 @@ import { SmartImage } from "@jixiaoyong/vue-github-assets";
   <!-- 频繁变化的图片，跳过缓存 -->
   <SmartImage src="..." mutable />
 </template>
+```
+
+### 独立使用隐私清理工具
+
+`cleanupExifFromFile` 可以在不上传文件的情况下，仅在本地清理图片的隐私信息。
+
+```typescript
+import { cleanupExifFromFile } from "@jixiaoyong/vue-github-assets";
+
+async function clean(file: File) {
+  // 1. 清理 EXIF
+  const { file: cleanedFile, removedTags } = await cleanupExifFromFile(file);
+
+  console.log("已移除的标签:", removedTags);
+  // ["GPS", "Exif.Image.Make", "Exif.Image.Model", ...]
+
+  // 2. 将清理后的文件用于其他用途（如上传到 S3 或预览）
+  const url = URL.createObjectURL(cleanedFile);
+}
 ```
 
 ## 📖 API

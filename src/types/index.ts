@@ -90,6 +90,14 @@ export interface FolderItem {
 /**
  * 上传结果 / Upload result
  */
+export interface AtomicUploadResult {
+    success: boolean;
+    files: UploadResult[];
+    manifestSha?: string;
+    commitSha?: string;
+    error?: Error;
+}
+
 export interface UploadResult {
     success: boolean;
     /** GitHub Pages URL 链接 / GitHub Pages URL */

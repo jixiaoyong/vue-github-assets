@@ -7,7 +7,10 @@
 import { ref, toValue } from 'vue';
 import type { Octokit } from '@octokit/rest';
 import type { MaybeRefOrGetter } from 'vue';
-import type { StoreConfig, UploadOptions, UploadResult, AssetItem } from '@/types';
+import type {
+    StoreConfig, UploadOptions, UploadResult, AssetItem,
+    AtomicUploadResult
+} from '@/types';
 import { cleanupExifFromFile, type CleanupResult } from '@/utils/exif-cleaner';
 import { compressImage, needsCompression } from '@/utils/image-compressor';
 import { buildUrlChain } from '@/utils/url-transformer';
@@ -125,13 +128,7 @@ export function useUploader(options: UseUploaderOptions) {
     // Atomic Upload Types
     // ============================================
 
-    interface AtomicUploadResult {
-        success: boolean;
-        files: UploadResult[];
-        manifestSha?: string;
-        commitSha?: string;
-        error?: Error;
-    }
+
 
     // ============================================
     // Atomic Upload Implementation
