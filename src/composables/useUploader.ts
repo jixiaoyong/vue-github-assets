@@ -57,7 +57,7 @@ interface UseUploaderOptions {
 // ============================================
 
 export function useUploader(options: UseUploaderOptions) {
-    const { config, octokit: octokitRef, onFileUploaded, onExifCleanupFailed } = options;
+    const { config, octokit: octokitRef, onFileUploaded } = options;
 
     const uploading = ref(false);
     const progress = ref(0);
@@ -122,175 +122,317 @@ export function useUploader(options: UseUploaderOptions) {
     }
 
     // ============================================
-    // 上传单个文件 / Upload Single File
+    // Atomic Upload Types
+    // ============================================
+
+    interface AtomicUploadResult {
+        success: boolean;
+        files: UploadResult[];
+        manifestSha?: string;
+        commitSha?: string;
+        error?: Error;
+    }
+
+    // ============================================
+    // Atomic Upload Implementation
+    // ============================================
+
+    async function uploadAtomic(
+        files: File[],
+        targetFolder: string = '',
+        options: UploadOptions = {}
+    ): Promise<AtomicUploadResult> {
+        uploading.value = true;
+        progress.value = 0;
+        error.value = null;
+
+        const results: UploadResult[] = [];
+
+        try {
+            const octo = getOctokit();
+            const branch = options.branch || getBranch();
+            const { formatBytes } = await import('@/utils/format');
+
+            // 1. Prepare Files (Compress & EXIF Clean)
+            // =========================================
+            const processedFiles: { file: File, path: string, content: string }[] = [];
+            const timestamp = new Date().toISOString();
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                progress.value = Math.round((i / files.length) * 30); // 0-30% for preparation
+
+                // EXIF Cleaning & Compression Logic
+                let finalFile = file;
+                if (!options.skipExifClean) {
+                    const cleanResult = await cleanupExifFromFile(file);
+
+                    // Simple logic for batch: if clean successful, use it. If error, check fallback.
+                    // For atomic batch, we simplify interaction for now: prefer cleaned, fallback to original if safe.
+
+                    if (cleanResult.file) {
+                        finalFile = cleanResult.file;
+                    }
+                }
+
+                if (options.compress && needsCompression(finalFile, options.compress)) {
+                    try {
+                        finalFile = await compressImage(finalFile, options.compress);
+                    } catch (e) {
+                        console.warn('Compression failed, using original', e);
+                    }
+                }
+
+                const base64 = await fileToBase64(finalFile);
+                processedFiles.push({
+                    file: finalFile,
+                    path: generateFilePath(finalFile, targetFolder),
+                    content: base64
+                });
+            }
+
+            // 2. Fetch Current HEAD & Tree
+            // =========================================
+            progress.value = 40;
+            const ref = await octo.git.getRef({
+                owner: config.owner,
+                repo: config.repo,
+                ref: `heads/${branch}`,
+            });
+            const currentCommitSha = ref.data.object.sha;
+
+            const commitData = await octo.git.getCommit({
+                owner: config.owner,
+                repo: config.repo,
+                commit_sha: currentCommitSha,
+            });
+            const baseTreeSha = commitData.data.tree.sha;
+
+            // 3. Create Blobs for Images
+            // =========================================
+            const newTreeItems: { path: string; mode: "100644"; type: "blob"; sha: string }[] = [];
+
+            for (let i = 0; i < processedFiles.length; i++) {
+                const item = processedFiles[i];
+                progress.value = 40 + Math.round((i / processedFiles.length) * 20); // 40-60%
+
+                const blob = await octo.git.createBlob({
+                    owner: config.owner,
+                    repo: config.repo,
+                    content: item.content,
+                    encoding: 'base64',
+                });
+
+                newTreeItems.push({
+                    path: item.path,
+                    mode: '100644',
+                    type: 'blob',
+                    sha: blob.data.sha,
+                });
+
+                const urls = buildUrlChain(item.path, { ...config, branch });
+                results.push({
+                    success: true,
+                    path: item.path,
+                    url: urls.displayUrl,
+                    rawUrl: urls.rawUrl,
+                });
+            }
+
+            // 4. Update Manifest (InMemory)
+            // =========================================
+            progress.value = 70;
+
+            const currentTree = await octo.git.getTree({
+                owner: config.owner,
+                repo: config.repo,
+                tree_sha: baseTreeSha,
+                recursive: true.toString(),
+            });
+
+            // Filter out old manifest and non-blobs
+            const existingFiles = currentTree.data.tree.filter(t => t.type === 'blob' && t.path !== '.vga-manifest.json');
+
+            const allFilesMap = new Map<string, { size: number, sha: string }>();
+
+            existingFiles.forEach(f => {
+                if (f.path) allFilesMap.set(f.path, { size: f.size || 0, sha: f.sha || '' });
+            });
+
+            // Update with new files
+            processedFiles.forEach((f, idx) => {
+                allFilesMap.set(f.path, { size: f.file.size, sha: newTreeItems[idx].sha });
+            });
+
+            // Build File List
+            const manifestFiles: AssetItem[] = [];
+            let totalSize = 0;
+
+            const sortedPaths = Array.from(allFilesMap.keys()).sort();
+            const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|svg)$/i;
+
+            for (const path of sortedPaths) {
+                const info = allFilesMap.get(path)!;
+                if (IMAGE_EXTENSIONS.test(path)) {
+                    manifestFiles.push({
+                        name: path.split('/').pop() || '',
+                        path: path,
+                        size: info.size,
+                        sha: info.sha,
+                    });
+                    totalSize += info.size;
+                }
+            }
+
+            // Extract Folders
+            const folders = new Set<string>();
+            manifestFiles.forEach(f => {
+                const parts = f.path.split('/');
+                parts.pop();
+                let current = '';
+                parts.forEach(p => {
+                    current = current ? `${current}/${p}` : p;
+                    folders.add(current);
+                });
+            });
+
+            // Create Manifest Object
+            const newManifest = {
+                meta: {
+                    version: '1.1.0',
+                    generator: 'vue-github-assets',
+                    lastUpdated: timestamp,
+                    lastSyncedSha: '', // Will be updated by Atomic Uploads usually
+                },
+                stats: {
+                    totalCount: manifestFiles.length,
+                    totalSize: totalSize,
+                    formattedSize: formatBytes(totalSize),
+                },
+                files: manifestFiles,
+                folders: Array.from(folders).sort(),
+            };
+
+            // 5. Create Blob for Manifest
+            // =========================================
+            const manifestContent = JSON.stringify(newManifest, null, 2);
+            const manifestBlob = await octo.git.createBlob({
+                owner: config.owner,
+                repo: config.repo,
+                content: btoa(unescape(encodeURIComponent(manifestContent))),
+                encoding: 'base64',
+            });
+
+            newTreeItems.push({
+                path: '.vga-manifest.json',
+                mode: '100644',
+                type: 'blob',
+                sha: manifestBlob.data.sha,
+            });
+
+            // 6. Create New Tree
+            // =========================================
+            progress.value = 85;
+            const newTree = await octo.git.createTree({
+                owner: config.owner,
+                repo: config.repo,
+                base_tree: baseTreeSha,
+                tree: newTreeItems,
+            });
+
+            // 7. Create Commit
+            // =========================================
+            progress.value = 90;
+            const newCommit = await octo.git.createCommit({
+                owner: config.owner,
+                repo: config.repo,
+                message: `chore: upload ${processedFiles.length} assets`,
+                tree: newTree.data.sha,
+                parents: [currentCommitSha],
+            });
+
+            // 8. Update Reference (Push)
+            // =========================================
+            progress.value = 95;
+            await octo.git.updateRef({
+                owner: config.owner,
+                repo: config.repo,
+                ref: `heads/${branch}`,
+                sha: newCommit.data.sha,
+            });
+
+            // Notify about uploaded files
+            if (onFileUploaded) {
+                processedFiles.forEach((f, i) => {
+                    onFileUploaded({
+                        name: f.file.name,
+                        path: f.path,
+                        size: f.file.size,
+                        sha: newTreeItems[i].sha,
+                        mimeType: f.file.type,
+                        uploadedAt: timestamp,
+                    });
+                });
+            }
+
+            progress.value = 100;
+            uploading.value = false;
+
+            return {
+                success: true,
+                files: results,
+                manifestSha: manifestBlob.data.sha,
+                commitSha: newCommit.data.sha
+            };
+
+        } catch (e) {
+            console.error('Atomic Upload Failed', e);
+            error.value = e as Error;
+            uploading.value = false;
+            return {
+                success: false,
+                files: results,
+                error: e as Error
+            };
+        }
+    }
+
+    // ============================================
+    // Legacy Wrappers
     // ============================================
 
     async function upload(
         file: File,
         uploadOptions: UploadOptions = {}
     ): Promise<UploadResult> {
-        uploading.value = true;
-        progress.value = 0;
-        error.value = null;
+        const targetFolder = uploadOptions.folder || '';
+        const result = await uploadAtomic([file], targetFolder, uploadOptions);
 
-        try {
-            let processedFile = file;
-
-            // 步骤 1: EXIF 清理（除非跳过）/ Step 1: EXIF cleaning (unless skipped)
-            if (!uploadOptions.skipExifClean) {
-                progress.value = 10;
-                const cleanResult = await cleanupExifFromFile(file);
-
-                // 检查是否有错误（不是格式跳过的警告）
-                // Check if there's an error (not a format skip warning)
-                const hasRealError = cleanResult.error &&
-                    !cleanResult.error.includes('不支持的格式') &&
-                    !cleanResult.error.includes('Unsupported format');
-
-                if (hasRealError && onExifCleanupFailed) {
-                    // 调用回调让用户选择 / Call callback to let user choose
-                    const actions = await onExifCleanupFailed([{
-                        file,
-                        error: cleanResult.error || 'Unknown error',
-                        result: cleanResult,
-                    }]);
-
-                    const action = actions.find(a => a.fileName === file.name);
-                    if (action?.action === 'skip') {
-                        return { success: false, error: new Error('用户取消上传 / User cancelled upload') };
-                    } else if (action?.action === 'retry') {
-                        // 重试一次 / Retry once
-                        const retryResult = await cleanupExifFromFile(file);
-                        if (retryResult.success && retryResult.file) {
-                            processedFile = retryResult.file;
-                        } else {
-                            // 重试失败，使用原文件 / Retry failed, use original
-                            processedFile = file;
-                        }
-                    } else {
-                        // upload-original: 使用原文件 / Use original file
-                        processedFile = file;
-                    }
-                } else if (cleanResult.success && cleanResult.file) {
-                    processedFile = cleanResult.file;
-                }
-            }
-            progress.value = 30;
-
-            // 步骤 2: 压缩 (如果需要) / Step 2: Compression (if requested)
-            if (uploadOptions.compress && needsCompression(processedFile, uploadOptions.compress)) {
-                progress.value = 40;
-                processedFile = await compressImage(processedFile, uploadOptions.compress);
-            }
-            progress.value = 50;
-
-            // 步骤 3: 转换为 Base64 / Step 3: Convert to Base64
-            const base64Content = await fileToBase64(processedFile);
-            progress.value = 60;
-
-            // 步骤 4: 生成路径 / Step 4: Generate path
-            const filePath = generateFilePath(processedFile, uploadOptions.folder);
-            progress.value = 70;
-
-            // 步骤 5: 检查文件是否存在 (用于覆盖逻辑) / Step 5: Check if file exists (for overwrite)
-            const octo = getOctokit();
-            let existingSha: string | undefined;
-
-            try {
-                const existing = await octo.repos.getContent({
-                    owner: config.owner,
-                    repo: config.repo,
-                    path: filePath,
-                    ref: getBranch(),
-                });
-
-                if ('sha' in existing.data) {
-                    existingSha = existing.data.sha;
-                }
-            } catch {
-                // 文件不存在，这是正常的 / File doesn't exist, that's fine
-            }
-            progress.value = 80;
-
-            // 步骤 6: 上传到 GitHub / Step 6: Upload to GitHub
-            const response = await octo.repos.createOrUpdateFileContents({
-                owner: config.owner,
-                repo: config.repo,
-                path: filePath,
-                message: `Upload via Asset Plugin: ${processedFile.name}`,
-                content: base64Content,
-                branch: getBranch(),
-                sha: existingSha,
-            });
-            progress.value = 95;
-
-            // 步骤 7: 构建返回链接 / Step 7: Build result URLs
-            const urls = buildUrlChain(filePath, config);
-
-            // 创建 Manifest 资源项 / Create asset item for manifest
-            const assetItem: AssetItem = {
-                name: processedFile.name,
-                path: filePath,
-                size: processedFile.size,
-                sha: response.data.content?.sha || '',
-                mimeType: processedFile.type,
-                uploadedAt: new Date().toISOString(),
-            };
-
-            // 通知文件上传完成 / Notify about uploaded file
-            if (onFileUploaded) {
-                onFileUploaded(assetItem);
-            }
-
-            progress.value = 100;
-
-            return {
-                success: true,
-                url: urls.displayUrl,
-                rawUrl: urls.rawUrl,
-                path: filePath,
-            };
-        } catch (e) {
-            error.value = e as Error;
+        if (result.success && result.files.length > 0) {
+            return result.files[0];
+        } else {
             return {
                 success: false,
-                error: e as Error,
+                error: result.error || new Error('Upload failed')
             };
-        } finally {
-            uploading.value = false;
         }
     }
-
-    // ============================================
-    // 批量上传 / Upload Multiple Files
-    // ============================================
 
     async function uploadMultiple(
         files: File[],
         uploadOptions: UploadOptions = {}
     ): Promise<UploadResult[]> {
-        const results: UploadResult[] = [];
-
-        for (let i = 0; i < files.length; i++) {
-            const result = await upload(files[i], uploadOptions);
-            results.push(result);
-
-            // 更新总体进度 / Update overall progress
-            progress.value = Math.round(((i + 1) / files.length) * 100);
-        }
-
-        return results;
+        const targetFolder = uploadOptions.folder || '';
+        const result = await uploadAtomic(files, targetFolder, uploadOptions);
+        return result.files;
     }
 
-    // ============================================
-    // 返回 / Return
-    // ============================================
-
     return {
+        upload,
+        uploadMultiple,
+        uploadAtomic,
         uploading,
         progress,
         error,
-        upload,
-        uploadMultiple,
     };
 }

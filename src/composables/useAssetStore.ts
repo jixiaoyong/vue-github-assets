@@ -3,7 +3,7 @@
  * 
  * 集成所有资源管理功能 / Integrates all asset management functionality
  */
-import { ref, computed, watch, toValue, type MaybeRefOrGetter } from 'vue';
+import { ref, computed, watch, toValue } from 'vue';
 import { Octokit } from '@octokit/rest';
 import type {
     StoreConfig,
@@ -66,8 +66,6 @@ export function useAssetStore(config: StoreConfig, options?: UseAssetStoreOption
         octokit,
         onFileUploaded: (file) => {
             manifest.addFile(file);
-            // 后台触发 Manifest 保存 / Trigger manifest save in background
-            manifest.saveManifest(manifest.manifest.value!);
         },
         onExifCleanupFailed: options?.onExifCleanupFailed,
     });
@@ -95,7 +93,7 @@ export function useAssetStore(config: StoreConfig, options?: UseAssetStoreOption
             }
 
             // 后台同步真实文件 (首次加载时) / Sync with real files in background (on first load)
-            if (!manifest.manifest.value?.lastSyncedSha) {
+            if (!manifest.manifest.value?.meta.lastSyncedSha) {
                 manifest.syncWithRealFiles().then(() => {
                     updateFromManifest(path);
                 });
@@ -326,7 +324,7 @@ export function useAssetStore(config: StoreConfig, options?: UseAssetStoreOption
 
     watch(
         () => [toValue(config.token), config.owner, config.repo, config.branch],
-        ([newToken, newOwner, newRepo, newBranch]) => {
+        ([newToken, newOwner, newRepo]) => {
             if (newToken && newOwner && newRepo) {
                 // Token 可用，加载数据 / Token became available, load data
                 fetchList();

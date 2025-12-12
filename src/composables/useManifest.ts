@@ -12,7 +12,7 @@ import type { VgaManifest, AssetItem, StoreConfig } from '@/types';
 // ============================================
 
 const MANIFEST_FILENAME = '.vga-manifest.json';
-const MANIFEST_VERSION = '1.0.0';
+
 const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|svg)$/i;
 
 // ============================================
@@ -64,7 +64,8 @@ export function useManifest(options: UseManifestOptions) {
 
     function getManifestHash(m: VgaManifest): string {
         return JSON.stringify({
-            version: m.version,
+            meta: m.meta,
+            stats: m.stats,
             files: m.files.map(f => ({ ...f, sha: f.sha, path: f.path })),
             folders: m.folders
         });
@@ -91,9 +92,7 @@ export function useManifest(options: UseManifestOptions) {
         }
     }
 
-    function getBranchSync(): string {
-        return config.branch || detectedBranch.value || 'main';
-    }
+
 
     function getPath(): string {
         return config.basePath || '';
@@ -128,7 +127,32 @@ export function useManifest(options: UseManifestOptions) {
             if ('content' in response.data && response.data.type === 'file') {
                 manifestSha.value = response.data.sha;
                 const content = atob(response.data.content);
-                manifest.value = JSON.parse(content) as VgaManifest;
+                const rawManifest = JSON.parse(content);
+
+                // Compatibility handling: migrate V1 to V2 structure if needed
+                if (!rawManifest.meta && rawManifest.version) {
+                    manifest.value = {
+                        meta: {
+                            version: '1.1.0',
+                            // @ts-ignore
+                            generator: rawManifest.generator || 'vue-github-assets',
+                            // @ts-ignore
+                            lastUpdated: rawManifest.lastUpdated || new Date().toISOString(),
+                            // @ts-ignore
+                            lastSyncedSha: rawManifest.lastSyncedSha || '',
+                        },
+                        stats: {
+                            totalCount: rawManifest.files?.length || 0,
+                            totalSize: 0, // Need recalculation or default to 0
+                            formattedSize: '0 B',
+                        },
+                        files: rawManifest.files || [],
+                        folders: rawManifest.folders || [],
+                    };
+                } else {
+                    manifest.value = rawManifest as VgaManifest;
+                }
+
                 lastSavedState.value = getManifestHash(manifest.value);
                 return manifest.value;
             }
@@ -152,9 +176,17 @@ export function useManifest(options: UseManifestOptions) {
 
     function createEmptyManifest(): VgaManifest {
         return {
-            version: MANIFEST_VERSION,
-            lastUpdated: new Date().toISOString(),
-            lastSyncedSha: '',
+            meta: {
+                version: '1.1.0',
+                generator: 'vue-github-assets',
+                lastUpdated: new Date().toISOString(),
+                lastSyncedSha: '',
+            },
+            stats: {
+                totalCount: 0,
+                totalSize: 0,
+                formattedSize: '0 B',
+            },
             files: [],
             folders: [],
         };
@@ -279,10 +311,22 @@ export function useManifest(options: UseManifestOptions) {
                 result.changes.modified.length > 0;
 
             if (hasChanges) {
+                // Calculate stats
+                const totalSize = realFiles.reduce((acc, f) => acc + f.size, 0);
+                const { formatBytes } = await import('@/utils/format');
+
                 const updatedManifest: VgaManifest = {
-                    version: MANIFEST_VERSION,
-                    lastUpdated: new Date().toISOString(),
-                    lastSyncedSha: '', // Will be updated by GitHub Action if configured
+                    meta: {
+                        version: '1.1.0',
+                        generator: 'vue-github-assets',
+                        lastUpdated: new Date().toISOString(),
+                        lastSyncedSha: '', // Will be updated by Atomic Uploads usually
+                    },
+                    stats: {
+                        totalCount: realFiles.length,
+                        totalSize: totalSize,
+                        formattedSize: formatBytes(totalSize),
+                    },
                     files: realFiles,
                     folders: extractFolders(realFiles),
                 };
@@ -371,6 +415,7 @@ export function useManifest(options: UseManifestOptions) {
     // ============================================
 
     function addFile(file: AssetItem): void {
+        /* Deprecated: Logic moved to Atomic Upload, but keeping for compatibility if needed */
         if (!manifest.value) {
             manifest.value = createEmptyManifest();
         }
@@ -380,17 +425,27 @@ export function useManifest(options: UseManifestOptions) {
 
         // Add new file
         manifest.value.files.push(file);
-        manifest.value.lastUpdated = new Date().toISOString();
+
+        // Update Meta
+        manifest.value.meta.lastUpdated = new Date().toISOString();
+
+        // Update Stats (Simplified, proper calc is in sync)
+        manifest.value.stats.totalCount = manifest.value.files.length;
+        // Total size update would require iterating all files usually
 
         // Update folders
         manifest.value.folders = extractFolders(manifest.value.files);
     }
 
     function removeFile(path: string): void {
+        /* Deprecated: Logic moved to Atomic Upload */
         if (!manifest.value) return;
 
         manifest.value.files = manifest.value.files.filter(f => f.path !== path);
-        manifest.value.lastUpdated = new Date().toISOString();
+
+        manifest.value.meta.lastUpdated = new Date().toISOString();
+        manifest.value.stats.totalCount = manifest.value.files.length;
+
         manifest.value.folders = extractFolders(manifest.value.files);
     }
 

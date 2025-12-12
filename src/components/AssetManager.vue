@@ -4,12 +4,11 @@
      * 
      * 完整的资源管理与上传界面 / Complete asset management UI with uploader, grid, and folder navigation
      */
-    import { ref, onMounted, computed, watch } from 'vue';
+    import { ref, onMounted, computed } from 'vue';
     import {
-        RefreshCw, FolderPlus, ChevronRight, Home,
-        Sidebar, SidebarClose, Menu
+        RefreshCw, FolderPlus, ChevronRight, Home, Menu
     } from 'lucide-vue-next';
-    import type { AssetManagerProps, AssetItem, FolderItem } from '@/types';
+    import type { AssetManagerProps, AssetItem } from '@/types';
     import { useAssetStore } from '@/composables/useAssetStore';
     import type { ExifFailedItem, ExifFailureAction } from '@/composables/useUploader';
     import AssetUploader from './AssetUploader.vue';
@@ -226,7 +225,7 @@
                     <button class="vga-btn vga-btn-ghost vga-btn-icon" @click="goHome">
                         <Home :size="18" />
                     </button>
-                    <template v-for="(crumb, index) in breadcrumbs" :key="crumb.path">
+                    <template v-for="crumb in breadcrumbs" :key="crumb.path">
                         <ChevronRight :size="14" class="vga-manager__sep" />
                         <button class="vga-btn vga-btn-ghost vga-btn-sm" @click="navigateTo(crumb.path)">
                             {{ crumb.name }}
@@ -334,6 +333,8 @@
         overflow-x: auto;
         scrollbar-width: none;
         -webkit-overflow-scrolling: touch;
+        mask-image: linear-gradient(to right, black 90%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
     }
 
     .vga-manager__breadcrumb::-webkit-scrollbar {

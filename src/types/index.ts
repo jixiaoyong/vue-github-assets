@@ -35,6 +35,8 @@ export interface UploadOptions {
     compress?: CompressOptions;
     /** 上传的目标文件夹 / Target folder for upload */
     folder?: string;
+    /** 上传的目标分支 / Target branch for upload */
+    branch?: string;
 }
 
 /**
@@ -105,18 +107,42 @@ export interface UploadResult {
 // ============================================
 
 /**
+ * Manifest 统计信息 / Manifest statistics
+ */
+export interface ManifestStats {
+    /** 资源总数 / Total number of assets */
+    totalCount: number;
+    /** 资源总大小 (字节) / Total size in bytes */
+    totalSize: number;
+    /** 格式化后的大小 (如 "1.5 MB") / Formatted size string */
+    formattedSize: string;
+}
+
+/**
+ * Manifest 元数据 / Manifest metadata
+ */
+export interface ManifestMeta {
+    /** Manifest 结构版本 / Manifest schema version */
+    version: string;
+    /** 生成器标识 / Generator identifier */
+    generator: string;
+    /** 最后更新时间 / Last updated timestamp */
+    lastUpdated: string;
+    /** 最后同步的 Git Commit SHA / Last synced git commit SHA */
+    lastSyncedSha: string;
+}
+
+/**
  * VGA Manifest 文件结构 / VGA Manifest file structure
  */
 export interface VgaManifest {
-    /** 架构版本号，用于迁移 / Schema version for migration */
-    version: string;
-    /** 最后更新时间 (ISO) / Last update timestamp (ISO) */
-    lastUpdated: string;
-    /** 根目录 SHA，用于增量同步 / Root directory SHA for incremental sync */
-    lastSyncedSha: string;
-    /** 仓库中的所有文件 / All files in the repository */
+    /** 元数据 / Metadata */
+    meta: ManifestMeta;
+    /** 统计信息 / Statistics */
+    stats: ManifestStats;
+    /** 文件列表 / List of files */
     files: AssetItem[];
-    /** 所有文件夹路径 / All folder paths */
+    /** 文件夹列表 / List of folders */
     folders: string[];
 }
 

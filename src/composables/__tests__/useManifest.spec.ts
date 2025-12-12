@@ -41,9 +41,17 @@ describe('useManifest', () => {
             data: {
                 type: 'file',
                 content: btoa(JSON.stringify({
-                    version: '1.0.0',
-                    lastUpdated: '2023-01-01T00:00:00Z',
-                    lastSyncedSha: 'sha123',
+                    meta: {
+                        version: '1.0.0',
+                        generator: 'vue-github-assets',
+                        lastUpdated: '2023-01-01T00:00:00Z',
+                        lastSyncedSha: 'sha123',
+                    },
+                    stats: {
+                        totalCount: 0,
+                        totalSize: 0,
+                        formattedSize: '0 B',
+                    },
                     files: [],
                     folders: [],
                 })),
@@ -59,7 +67,7 @@ describe('useManifest', () => {
         await loadManifest();
 
         expect(manifest.value).not.toBeNull();
-        expect(manifest.value?.version).toBe('1.0.0');
+        expect(manifest.value?.meta.version).toBe('1.0.0');
     });
 
     it('handles missing manifest gracefully', async () => {

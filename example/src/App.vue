@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue';
   import { AssetManager, type StoreConfig } from '@jixiaoyong/vue-github-assets';
+  import CleanerDemo from './components/CleanerDemo.vue';
 
   // 配置 / Configuration
   // 实际使用时建议将 Token 放在环境变量中
@@ -14,6 +15,7 @@
   });
 
   const showConfig = ref(false);
+  const activeTab = ref<'manager' | 'cleaner'>('manager');
 
   // State to verify connectivity
   const isConfigured = computed(() => {
@@ -25,54 +27,70 @@
   <div class="demo-container">
     <header class="demo-header">
       <h1>Vue GitHub Assets Demo</h1>
-      <button class="vga-btn vga-btn-secondary" @click="showConfig = !showConfig">
-        {{ showConfig ? 'Hide Config' : 'Setup Config' }}
-      </button>
+      <div class="header-actions">
+        <button class="vga-btn" :class="{ 'vga-btn-active': activeTab === 'manager' }" @click="activeTab = 'manager'">
+          Asset Manager
+        </button>
+        <button class="vga-btn" :class="{ 'vga-btn-active': activeTab === 'cleaner' }" @click="activeTab = 'cleaner'">
+          Privacy Cleaner
+        </button>
+        <button class="vga-btn vga-btn-secondary" @click="showConfig = !showConfig" v-if="activeTab === 'manager'">
+          {{ showConfig ? 'Hide Config' : 'Setup Config' }}
+        </button>
+      </div>
     </header>
 
-    <!-- Configuration Form -->
-    <div v-if="showConfig || !isConfigured" class="config-panel">
-      <h3>Configuration</h3>
-      <div class="hint">
-        Provide your GitHub details to test the asset manager.
-        Best practice: create a `.env.local` file in `example/` with:
-        <pre>
-VITE_GITHUB_TOKEN=your_token
-VITE_GITHUB_OWNER=your_username
-VITE_GITHUB_REPO=your_repo
-        </pre>
-      </div>
-
-      <div class="form-group">
-        <label>Token:</label>
-        <input v-model="config.token" type="password" placeholder="ghp_..." class="vga-input" />
-      </div>
-      <div class="form-group">
-        <label>Owner:</label>
-        <input v-model="config.owner" type="text" placeholder="Username" class="vga-input" />
-      </div>
-      <div class="form-group">
-        <label>Repo:</label>
-        <input v-model="config.repo" type="text" placeholder="Repository" class="vga-input" />
-      </div>
-      <div class="form-group">
-        <label>Branch:</label>
-        <input v-model="config.branch" type="text" placeholder="main" class="vga-input" />
-      </div>
-      <div class="form-group">
-        <label>Base Path:</label>
-        <input v-model="config.basePath" type="text" placeholder="assets" class="vga-input" />
-      </div>
+    <!-- Privacy Cleaner Demo -->
+    <div v-if="activeTab === 'cleaner'" class="cleaner-wrapper">
+      <CleanerDemo />
     </div>
 
-    <!-- Asset Manager Instance -->
-    <div v-if="isConfigured" class="manager-wrapper">
-      <AssetManager :config="config" :show-folders="true" :show-uploader="true" />
-    </div>
+    <!-- Asset Manager Demo -->
+    <template v-else>
+      <!-- Configuration Form -->
+      <div v-if="showConfig || !isConfigured" class="config-panel">
+        <h3>Configuration</h3>
+        <div class="hint">
+          Provide your GitHub details to test the asset manager.
+          Best practice: create a `.env.local` file in `example/` with:
+          <pre>
+  VITE_GITHUB_TOKEN=your_token
+  VITE_GITHUB_OWNER=your_username
+  VITE_GITHUB_REPO=your_repo
+          </pre>
+        </div>
 
-    <div v-else class="empty-state">
-      <p>Please configure the plugin to continue.</p>
-    </div>
+        <div class="form-group">
+          <label>Token:</label>
+          <input v-model="config.token" type="password" placeholder="ghp_..." class="vga-input" />
+        </div>
+        <div class="form-group">
+          <label>Owner:</label>
+          <input v-model="config.owner" type="text" placeholder="Username" class="vga-input" />
+        </div>
+        <div class="form-group">
+          <label>Repo:</label>
+          <input v-model="config.repo" type="text" placeholder="Repository" class="vga-input" />
+        </div>
+        <div class="form-group">
+          <label>Branch:</label>
+          <input v-model="config.branch" type="text" placeholder="main" class="vga-input" />
+        </div>
+        <div class="form-group">
+          <label>Base Path:</label>
+          <input v-model="config.basePath" type="text" placeholder="assets" class="vga-input" />
+        </div>
+      </div>
+
+      <!-- Asset Manager Instance -->
+      <div v-if="isConfigured" class="manager-wrapper">
+        <AssetManager :config="config" :show-folders="true" :show-uploader="true" />
+      </div>
+
+      <div v-else class="empty-state">
+        <p>Please configure the plugin to continue.</p>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -100,11 +118,40 @@ VITE_GITHUB_REPO=your_repo
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   h1 {
     margin: 0;
     font-size: 1.5rem;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .demo-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .header-actions {
+      width: 100%;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      /* Space for potential scrollbar */
+    }
+
+    .vga-btn {
+      white-space: nowrap;
+      font-size: 0.85rem;
+      padding: 6px 12px;
+    }
   }
 
   /* Config Panel */
@@ -159,6 +206,11 @@ VITE_GITHUB_REPO=your_repo
     overflow: hidden;
   }
 
+  .cleaner-wrapper {
+    flex: 1;
+    overflow-y: auto;
+  }
+
   .empty-state {
     text-align: center;
     padding: 50px;
@@ -173,6 +225,16 @@ VITE_GITHUB_REPO=your_repo
     cursor: pointer;
     font-size: 0.9rem;
     transition: all 0.2s;
+    background: transparent;
+  }
+
+  .vga-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .vga-btn-active {
+    background: #e1e4e8;
+    font-weight: 600;
   }
 
   .vga-btn-secondary {

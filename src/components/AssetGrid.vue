@@ -3,8 +3,8 @@
      * AssetGrid Component
      * Responsive grid display for image assets with selection and preview
      */
-    import { computed, ref, watch } from 'vue';
-    import { Trash2, Copy, Check, X, ZoomIn, Link, Code, FileCode } from 'lucide-vue-next';
+    import { ref, watch } from 'vue';
+    import { Trash2, Check, X, ZoomIn, Link, Code, FileCode } from 'lucide-vue-next';
     import type { AssetItem } from '@/types';
     import SmartImage from './SmartImage.vue';
     import { buildUrlChain } from '@/utils/url-transformer';
@@ -40,6 +40,7 @@
     const selectedItem = ref<AssetItem | null>(null);
     const copiedFormat = ref<string | null>(null);
     const showPreview = ref(false);
+    const previewLoading = ref(false);
     const toastMessage = ref<string | null>(null);
 
     // ============================================
@@ -93,6 +94,29 @@
         }
     }
 
+    // Fallback copy method for mobile browsers
+    function fallbackCopyText(text: string): boolean {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+
+        // Avoid scrolling to bottom
+        textArea.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;padding:0;border:none;outline:none;box-shadow:none;background:transparent;';
+
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        let success = false;
+        try {
+            success = document.execCommand('copy');
+        } catch {
+            success = false;
+        }
+
+        document.body.removeChild(textArea);
+        return success;
+    }
+
     async function copyUrl(format: 'url' | 'markdown' | 'html') {
         if (!selectedItem.value) return;
         const url = getUrl(selectedItem.value);
@@ -110,20 +134,32 @@
                 text = url;
         }
 
-        try {
-            await navigator.clipboard.writeText(text);
+        let success = false;
+
+        // Try modern clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                success = true;
+            } catch {
+                // Fallback to execCommand
+                success = fallbackCopyText(text);
+            }
+        } else {
+            // Use fallback for non-secure contexts or unsupported browsers
+            success = fallbackCopyText(text);
+        }
+
+        if (success) {
             copiedFormat.value = format;
-
-            // Show toast
             toastMessage.value = `已复制 ${getFormatLabel(format)} 链接`;
-
             setTimeout(() => {
                 copiedFormat.value = null;
                 toastMessage.value = null;
             }, 2500);
-        } catch (e) {
-            console.error('Failed to copy:', e);
-            toastMessage.value = '复制失败';
+        } else {
+            console.error('Failed to copy text');
+            toastMessage.value = '复制失败，请手动复制';
             setTimeout(() => {
                 toastMessage.value = null;
             }, 2000);
@@ -147,11 +183,17 @@
     function openPreview() {
         if (selectedItem.value) {
             showPreview.value = true;
+            previewLoading.value = true;
         }
     }
 
     function closePreview() {
         showPreview.value = false;
+        previewLoading.value = false;
+    }
+
+    function onPreviewLoad() {
+        previewLoading.value = false;
     }
 
     // ============================================
@@ -217,8 +259,8 @@
                 <div class="vga-toolbar__content">
                     <!-- Thumbnail preview (click to enlarge) -->
                     <button class="vga-toolbar__preview" @click="openPreview" title="放大查看 / Preview">
-                        <SmartImage :src="getUrl(selectedItem)" :branch="props.config.branch" :width="48" :height="48"
-                            :quality="60" object-fit="cover" />
+                        <SmartImage :src="getUrl(selectedItem)" :branch="props.config.branch" :quality="70"
+                            object-fit="cover" :lazy="false" />
                         <div class="vga-toolbar__preview-icon">
                             <ZoomIn :size="14" />
                         </div>
@@ -278,7 +320,11 @@
             <Transition name="preview">
                 <div v-if="showPreview && selectedItem" class="vga-preview-modal" @click="closePreview">
                     <div class="vga-preview-modal__content" @click.stop>
-                        <img :src="getRawUrl(selectedItem)" :alt="selectedItem.name" class="vga-preview-modal__image" />
+                        <div v-if="previewLoading" class="vga-preview-modal__loading">
+                            <div class="vga-grid-loading__spinner"></div>
+                        </div>
+                        <img v-show="!previewLoading" :src="getRawUrl(selectedItem)" :alt="selectedItem.name"
+                            class="vga-preview-modal__image" @load="onPreviewLoad" />
                         <div class="vga-preview-modal__info">
                             <span>{{ selectedItem.name }}</span>
                             <span>{{ formatSize(selectedItem.size) }}</span>

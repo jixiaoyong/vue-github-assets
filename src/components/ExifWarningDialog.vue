@@ -5,7 +5,7 @@
      * 处理 EXIF 清理失败的交互弹窗 / Dialog to handle EXIF cleaning failures
      */
     import { ref } from 'vue';
-    import { AlertTriangle, ShieldAlert, Upload, RotateCcw, XCircle } from 'lucide-vue-next';
+    import { AlertTriangle, ShieldAlert, RotateCcw, XCircle } from 'lucide-vue-next';
     import type { ExifFailedItem, ExifFailureAction } from '@/composables/useUploader';
 
     // ============================================

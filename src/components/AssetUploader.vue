@@ -4,9 +4,9 @@
      * 
      * 支持拖拽上传区域 / Drag-and-drop upload zone with file validation
      */
-    import { ref, computed, toValue } from 'vue';
+    import { ref, computed } from 'vue';
     import { Upload, X, AlertCircle, CheckCircle } from 'lucide-vue-next';
-    import type { AssetUploaderProps, UploadResult, UploadOptions } from '@/types';
+    import type { AssetUploaderProps, UploadResult } from '@/types';
     import { useAssetStore } from '@/composables/useAssetStore';
 
     // ============================================
