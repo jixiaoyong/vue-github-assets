@@ -44,14 +44,14 @@ npm install vue@^3.3.0 @octokit/rest@^19.0.0
 npm install github:jixiaoyong/vue-github-assets
 
 # 或指定版本 (推荐)
-npm install github:jixiaoyong/vue-github-assets#v0.1.0
+npm install github:jixiaoyong/vue-github-assets#v0.1.1
 ```
 
 ### 2. 故障排除
 
 安装时会自动执行构建脚本，如遇问题请检查：
 
-1. **环境要求**：确保安装了 Git 和 Node.js 20+
+1. **环境要求**：确保安装了 Git 和 Node.js 20.19+
 2. **网络问题**：确保能访问 GitHub
 
 ## 快速开始

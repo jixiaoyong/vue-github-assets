@@ -42,14 +42,14 @@ npm install vue@^3.3.0 @octokit/rest@^19.0.0
 npm install github:jixiaoyong/vue-github-assets
 
 # Or specify a version (recommended)
-npm install github:jixiaoyong/vue-github-assets#v0.1.0
+npm install github:jixiaoyong/vue-github-assets#v0.1.1
 ```
 
 ### 2. Troubleshooting
 
 The build script runs automatically during installation. If you encounter issues:
 
-1. **Requirements**: Make sure Git and Node.js 20+ are installed
+1. **Requirements**: Make sure Git and Node.js 20.19+ are installed
 2. **Network**: Ensure you can access GitHub
 
 ## Quick Start
