@@ -19,8 +19,8 @@ export interface StoreConfig {
     repo: string;
     /** 分支名称 (默认: 'main') / Branch name (default: 'main') */
     branch?: string;
-    /** 上传的基础路径 (默认: '') / Base path for uploads (default: '') */
-    basePath?: string;
+    /** 初始展示路径 (默认: '' 即根目录) / Initial display path (default: '' for root) */
+    initialPath?: string;
     /** 自定义上传文件路径生成器 / Custom path generator for uploaded files */
     generatePath?: (file: File) => string;
 }

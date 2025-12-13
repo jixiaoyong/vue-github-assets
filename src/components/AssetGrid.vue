@@ -380,6 +380,7 @@ const isSelected = (item: AssetItem) => selectedItem.value?.path === item.path;
     display: flex;
     flex-direction: column;
     gap: var(--vga-space-3, 12px);
+    padding-bottom: 24px;
 }
 
 .vga-grid {

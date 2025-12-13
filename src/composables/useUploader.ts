@@ -4,17 +4,18 @@
  * 处理文件上传逻辑，包括 EXIF 清理和压缩
  * Handles file upload logic including EXIF cleaning and compression
  */
-import { ref, toValue } from 'vue';
-import type { Octokit } from '@octokit/rest';
-import type { MaybeRefOrGetter } from 'vue';
+import { IMAGE_EXTENSIONS_REGEX } from '@/constants/extensions';
 import type {
-    StoreConfig, UploadOptions, UploadResult, AssetItem,
-    AtomicUploadResult
+    AssetItem,
+    AtomicUploadResult,
+    StoreConfig, UploadOptions, UploadResult
 } from '@/types';
 import { cleanupExifFromFile, type CleanupResult } from '@/utils/exif-cleaner';
 import { compressImage, needsCompression } from '@/utils/image-compressor';
 import { buildUrlChain } from '@/utils/url-transformer';
-import { IMAGE_EXTENSIONS_REGEX } from '@/constants/extensions';
+import type { Octokit } from '@octokit/rest';
+import type { MaybeRefOrGetter } from 'vue';
+import { ref, toValue } from 'vue';
 
 // ============================================
 // 类型定义 / Type Definitions
@@ -83,10 +84,6 @@ export function useUploader(options: UseUploaderOptions) {
         return config.branch || 'main';
     }
 
-    function getBasePath(): string {
-        return config.basePath || '';
-    }
-
     function generateFilePath(file: File, folder?: string): string {
         // 使用自定义路径生成器 / Use custom generator if provided
         if (config.generatePath) {
@@ -107,15 +104,10 @@ export function useUploader(options: UseUploaderOptions) {
         const extension = file.name.split('.').pop()?.toLowerCase() || '';
         const newFileName = `${timestamp}.${extension}`;
 
-        // 构建路径 / Build path with optional folder
-        const basePath = getBasePath();
+        // 构建路径：直接使用传入的 folder 作为目标路径
+        // Build path: use the passed folder directly as target path
         const targetFolder = folder || '';
-
-        let path = '';
-        if (basePath) path = basePath;
-        if (targetFolder) path = path ? `${path}/${targetFolder}` : targetFolder;
-        if (path) path = `${path}/${newFileName}`;
-        else path = newFileName;
+        const path = targetFolder ? `${targetFolder}/${newFileName}` : newFileName;
 
         // 清理双斜杠 / Clean up any double slashes
         return path.replace(/\/+/g, '/').replace(/^\//, '');

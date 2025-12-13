@@ -3,20 +3,20 @@
  * 
  * 集成所有资源管理功能 / Integrates all asset management functionality
  */
-import { ref, computed, watch, toValue } from 'vue';
-import { Octokit } from '@octokit/rest';
 import type {
-    StoreConfig,
     AssetItem,
+    CdnOptions,
     FolderItem,
+    StoreConfig,
     UploadOptions,
     UploadResult,
-    CdnOptions,
     UseAssetStoreReturn,
 } from '@/types';
-import { useUploader } from './useUploader';
-import { useManifest } from './useManifest';
 import { buildUrlChain, toCdnUrl } from '@/utils/url-transformer';
+import { Octokit } from '@octokit/rest';
+import { computed, ref, toValue, watch } from 'vue';
+import { useManifest } from './useManifest';
+import { useUploader } from './useUploader';
 
 // ============================================
 // Composable
@@ -130,22 +130,22 @@ export function useAssetStore(config: StoreConfig, options?: UseAssetStoreOption
     function updateFromManifest(path?: string): void {
         if (!manifest.manifest.value) return;
 
-        // 使用 ?? 运算符，确保 path 为空字符串（Root）时也能生效，只有 undefined 时才回退到 basePath
-        // Use ?? operator to ensure empty string (Root) is valid, only fallback to basePath on undefined
-        const resolvedPath = path ?? config.basePath ?? '';
+        // 使用 ?? 运算符，确保 path 为空字符串（Root）时也能生效，只有 undefined 时才回退到 initialPath
+        // Use ?? operator to ensure empty string (Root) is valid, only fallback to initialPath on undefined
+        const resolvedPath = path ?? config.initialPath ?? '';
         currentPath.value = resolvedPath;
-        const basePath = resolvedPath;
+        const currentBasePath = resolvedPath;
 
 
         // 过滤当前路径的直接文件 / Filter files DIRECTLY in current path
         const directFiles = manifest.manifest.value.files.filter((file) => {
-            if (!basePath) {
+            if (!currentBasePath) {
                 // Root level: only show files without / in path
                 return !file.path.includes('/');
             }
             // Check if file is directly in this folder (not in a subfolder)
-            const relativePath = file.path.startsWith(basePath + '/')
-                ? file.path.slice(basePath.length + 1)
+            const relativePath = file.path.startsWith(currentBasePath + '/')
+                ? file.path.slice(currentBasePath.length + 1)
                 : null;
             // File should be in this folder and not have any more / (no subfolders)
             return relativePath !== null && !relativePath.includes('/');
@@ -153,13 +153,13 @@ export function useAssetStore(config: StoreConfig, options?: UseAssetStoreOption
 
         // 子文件夹中的文件 / Files from subfolders (shown at end with different style)
         const subfolderFiles = manifest.manifest.value.files.filter((file) => {
-            if (!basePath) {
+            if (!currentBasePath) {
                 // Root level: files WITH / in path are from subfolders
                 return file.path.includes('/');
             }
             // Check if file is in a subfolder of current path
-            const relativePath = file.path.startsWith(basePath + '/')
-                ? file.path.slice(basePath.length + 1)
+            const relativePath = file.path.startsWith(currentBasePath + '/')
+                ? file.path.slice(currentBasePath.length + 1)
                 : null;
             // File is in subfolder if it has more / in relative path
             return relativePath !== null && relativePath.includes('/');
@@ -177,13 +177,13 @@ export function useAssetStore(config: StoreConfig, options?: UseAssetStoreOption
         // 获取直接子文件夹 / Get direct child folders only
         folders.value = manifest.manifest.value.folders
             .filter((folder) => {
-                if (!basePath) {
+                if (!currentBasePath) {
                     // Root level: only show top-level folders (no / in path)
                     return !folder.includes('/');
                 }
                 // Check if folder is a direct child
-                if (!folder.startsWith(basePath + '/')) return false;
-                const relativePath = folder.slice(basePath.length + 1);
+                if (!folder.startsWith(currentBasePath + '/')) return false;
+                const relativePath = folder.slice(currentBasePath.length + 1);
                 // Should not have any more / (direct child only)
                 return !relativePath.includes('/');
             })

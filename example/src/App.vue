@@ -11,7 +11,7 @@ const config = ref<StoreConfig>({
   owner: import.meta.env.VITE_GITHUB_OWNER || '',
   repo: import.meta.env.VITE_GITHUB_REPO || '',
   branch: import.meta.env.VITE_GITHUB_BRANCH || '',
-  basePath: import.meta.env.VITE_GITHUB_BASE_PATH || '',
+  initialPath: import.meta.env.VITE_GITHUB_BASE_PATH || '',
 });
 
 const showConfig = ref(false);
@@ -125,8 +125,8 @@ function handleError(error: Error) {
           <input v-model="config.branch" type="text" placeholder="main" class="vga-input" />
         </div>
         <div class="form-group">
-          <label>Base Path:</label>
-          <input v-model="config.basePath" type="text" placeholder="assets" class="vga-input" />
+          <label>Initial Path:</label>
+          <input v-model="config.initialPath" type="text" placeholder="assets" class="vga-input" />
         </div>
       </div>
 

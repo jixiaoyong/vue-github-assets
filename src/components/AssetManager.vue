@@ -281,7 +281,7 @@ function refresh() {
 // ============================================
 
 onMounted(() => {
-    store.fetchList(props.config.basePath || '');
+    store.fetchList(props.config.initialPath || '');
 });
 </script>
 

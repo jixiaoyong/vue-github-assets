@@ -8,6 +8,11 @@
 - `confirm` now returns `(urls: string[], items: AssetItem[])` instead of `(url, item)` / `confirm` 现在返回数组格式，支持多选
 - `upload` event returns `{ url, item }[]` instead of `UploadResult[]` / `upload` 事件返回格式变更
 - `delete` event returns `{ url, item }[]` instead of `AssetItem` / `delete` 事件返回格式变更
+- `StoreConfig.basePath` renamed to `StoreConfig.initialPath` / `StoreConfig.basePath` 重命名为 `initialPath`
+
+### Fixed / 修复
+
+- Fix upload path duplication when uploading to nested folders / 修复上传到嵌套文件夹时的路径重复问题
 
 ### Added / 新增
 

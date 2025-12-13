@@ -18,7 +18,7 @@ const store = useAssetStore(config, options?);
 | `owner`        | `string`                   | 仓库拥有者 (用户名/组织名)     |
 | `repo`         | `string`                   | 仓库名称                       |
 | `branch`       | `string`                   | (可选) 分支名称，默认为 'main' |
-| `basePath`     | `string`                   | (可选) 仓库内的文件夹路径      |
+| `initialPath`  | `string`                   | (可选) 初始展示路径 (默认: '' 即根目录) |
 | `generatePath` | `(file: File) => string`   | (可选) 自定义文件路径生成函数  |
 
 ### 选项 (`UseAssetStoreOptions`)

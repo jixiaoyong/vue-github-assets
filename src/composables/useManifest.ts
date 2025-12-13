@@ -3,9 +3,9 @@
  * Manages the .vga-manifest.json index file
  * Implements Stale-While-Revalidate pattern
  */
-import { ref, computed, toValue, type MaybeRefOrGetter } from 'vue';
+import type { AssetItem, StoreConfig, VgaManifest } from '@/types';
 import type { Octokit } from '@octokit/rest';
-import type { VgaManifest, AssetItem, StoreConfig } from '@/types';
+import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue';
 
 // ============================================
 // Constants
@@ -97,12 +97,6 @@ export function useManifest(options: UseManifestOptions) {
             console.error('Failed to detect branch, defaulting to main:', e);
             return 'main';
         }
-    }
-
-
-
-    function getPath(): string {
-        return config.basePath || '';
     }
 
     // ============================================
