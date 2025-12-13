@@ -61,6 +61,9 @@ npm install github:jixiaoyong/vue-github-assets#v0.1.1
 ```vue
 <script setup>
 import { reactive, computed } from "vue";
+// 1. 导入样式（必须）
+import "@jixiaoyong/vue-github-assets/style.css";
+// 2. 导入组件和 composables
 import { useAssetStore, AssetManager } from "@jixiaoyong/vue-github-assets";
 
 const config = reactive({

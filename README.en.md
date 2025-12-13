@@ -59,6 +59,9 @@ The build script runs automatically during installation. If you encounter issues
 ```vue
 <script setup>
 import { reactive, computed } from "vue";
+// 1. Import styles (required)
+import "@jixiaoyong/vue-github-assets/style.css";
+// 2. Import components and composables
 import { useAssetStore, AssetManager } from "@jixiaoyong/vue-github-assets";
 
 const config = reactive({

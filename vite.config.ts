@@ -1,13 +1,11 @@
 import vue from '@vitejs/plugin-vue';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
-import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 import dts from 'vite-plugin-dts';
 
 export default defineConfig({
     plugins: [
         vue(),
-        cssInjectedByJsPlugin(),
         dts({
             rollupTypes: true,
             insertTypesEntry: true,
@@ -36,13 +34,15 @@ export default defineConfig({
                     vue: 'Vue',
                     '@octokit/rest': 'Octokit',
                 },
-                // Preserve CSS
+                // Preserve CSS as separate file
                 assetFileNames: (assetInfo) => {
-                    if (assetInfo.name === 'style.css') return 'style.css';
+                    if (assetInfo.name?.endsWith('.css')) return 'style.css';
                     return assetInfo.name || 'asset';
                 },
             },
         },
+        // Generate CSS as separate file
+        cssCodeSplit: false,
         // Disable sourcemaps for production (smaller package size)
         sourcemap: false,
         // Minify for production
