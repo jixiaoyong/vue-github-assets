@@ -1,6 +1,6 @@
 {
   "name": "@jixiaoyong/vue-github-assets",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "description": "A Vue 3 plugin for managing image assets in GitHub repositories",
   "main": "./dist/index.cjs",

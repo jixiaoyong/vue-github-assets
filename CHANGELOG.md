@@ -1,5 +1,22 @@
 # Changelog / 更新日志
 
+## [0.2.0] - 2025-12-13
+
+### ⚠️ Breaking Changes / 破坏性变更
+
+- `select` event renamed to `confirm` / `select` 事件重命名为 `confirm`
+- `confirm` now returns `(urls: string[], items: AssetItem[])` instead of `(url, item)` / `confirm` 现在返回数组格式，支持多选
+- `upload` event returns `{ url, item }[]` instead of `UploadResult[]` / `upload` 事件返回格式变更
+- `delete` event returns `{ url, item }[]` instead of `AssetItem` / `delete` 事件返回格式变更
+
+### Added / 新增
+
+- New `copy` event for tracking copy actions / 新增 `copy` 事件用于追踪复制操作
+- Export `AssetOperationResult` and `CopyFormat` types / 导出 `AssetOperationResult` 和 `CopyFormat` 类型
+- Example app now shows Toast for all events / Example 应用现在展示所有事件的 Toast 提示
+
+---
+
 ## [0.1.1] - 2025-12-13
 
 ### Security / 安全

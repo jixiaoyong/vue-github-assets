@@ -3,7 +3,7 @@
  * AssetGrid Component
  * Responsive grid display for image assets with selection and preview
  */
-import type { AssetItem } from '@/types';
+import type { AssetItem, CopyFormat } from '@/types';
 import { buildUrlChain } from '@/utils/url-transformer';
 import { Check, Code, FileCode, Link, Trash2, X, ZoomIn } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
@@ -32,9 +32,13 @@ const props = withDefaults(defineProps<{
 });
 
 const emit = defineEmits<{
-    select: [url: string, item: AssetItem];
-    confirm: [url: string, item: AssetItem];
+    /** 确认选择 (双击或点击UseImage) / Confirm selection */
+    confirm: [urls: string[], items: AssetItem[]];
+    /** 复制链接 / Copy link */
+    copy: [content: string, format: CopyFormat, item: AssetItem];
+    /** 删除资源 / Delete asset */
     delete: [item: AssetItem];
+    /** 重试 / Retry */
     retry: [];
 }>();
 
@@ -159,6 +163,8 @@ async function copyUrl(format: 'url' | 'markdown' | 'html') {
     if (success) {
         copiedFormat.value = format;
         toastMessage.value = `已复制 ${getFormatLabel(format)} 链接`;
+        // Emit copy event
+        emit('copy', text, format, selectedItem.value);
         setTimeout(() => {
             copiedFormat.value = null;
             toastMessage.value = null;
@@ -245,7 +251,7 @@ const isSelected = (item: AssetItem) => selectedItem.value?.path === item.path;
             <div v-for="item in items" :key="item.path" class="vga-grid-item" :class="{
                 'vga-grid-item--selected': isSelected(item),
                 'vga-grid-item--subfolder': item.isFromSubfolder
-            }" @click="handleItemClick(item)" @dblclick="emit('confirm', getUrl(item), item)">
+            }" @click="handleItemClick(item)" @dblclick="emit('confirm', [getUrl(item)], [item])">
                 <SmartImage :src="getUrl(item)" :branch="props.config.branch" :quality="70" object-fit="contain" lazy
                     class="vga-grid-item__image" />
                 <!-- Selection indicator -->
@@ -287,7 +293,8 @@ const isSelected = (item: AssetItem) => selectedItem.value?.path === item.path;
                     <div class="vga-toolbar__actions">
                         <!-- Confirm / Insert Button -->
                         <button class="vga-toolbar__btn vga-toolbar__btn--primary"
-                            @click="emit('confirm', getUrl(selectedItem), selectedItem)" title="插入图片 / Insert Image">
+                            @click="emit('confirm', [getUrl(selectedItem!)], [selectedItem!])"
+                            title="插入图片 / Insert Image">
                             <Check :size="18" />
                             <span class="vga-toolbar__btn-text">Use Image</span>
                         </button>

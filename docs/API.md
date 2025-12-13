@@ -126,7 +126,7 @@ interface AssetItem {
 
 ### AssetManager
 
-完整的资源管理界面组件。
+完整的资源管理界面组件。/ Complete asset management UI component.
 
 ```vue
 <AssetManager
@@ -134,24 +134,28 @@ interface AssetItem {
   :show-folders="true"
   :show-uploader="true"
   :copy-formats="['url', 'markdown', 'html']"
-  @select="handleSelect"
+  @confirm="handleConfirm"
   @upload="handleUpload"
   @delete="handleDelete"
+  @copy="handleCopy"
+  @error="handleError"
 />
 ```
 
-| Props          | 类型          | 默认值  | 说明           |
-| -------------- | ------------- | ------- | -------------- |
-| `config`       | `StoreConfig` | -       | 仓库配置 (必填)|
-| `showFolders`  | `boolean`     | `true`  | 显示文件夹树   |
-| `showUploader` | `boolean`     | `true`  | 显示上传区域   |
-| `copyFormats`  | `string[]`    | `['url']` | 复制格式选项 |
+| Props          | 类型 / Type   | 默认值 / Default | 说明 / Description              |
+| -------------- | ------------- | ---------------- | ------------------------------- |
+| `config`       | `StoreConfig` | -                | 仓库配置 (必填) / Required config |
+| `showFolders`  | `boolean`     | `true`           | 显示文件夹树 / Show folder tree |
+| `showUploader` | `boolean`     | `true`           | 显示上传区域 / Show uploader    |
+| `copyFormats`  | `string[]`    | `['url']`        | 复制格式选项 / Copy format options |
 
-| Events   | 参数           | 说明           |
-| -------- | -------------- | -------------- |
-| `select` | `url: string`  | 选择资源时触发 |
-| `upload` | `UploadResult` | 上传完成时触发 |
-| `delete` | `AssetItem`    | 删除完成时触发 |
+| Events    | 参数 / Parameters                                    | 说明 / Description                    |
+| --------- | ---------------------------------------------------- | ------------------------------------- |
+| `confirm` | `(urls: string[], items: AssetItem[])`               | 确认选择时触发 / On confirm selection |
+| `upload`  | `(results: { url: string, item: AssetItem }[])`      | 上传成功后触发 / After successful upload |
+| `delete`  | `(results: { url: string, item: AssetItem }[])`      | 删除成功后触发 / After successful delete |
+| `copy`    | `(content: string, format: CopyFormat, item: AssetItem)` | 复制链接时触发 / On copy link |
+| `error`   | `(error: Error)`                                     | 操作出错时触发 / On error             |
 
 ---
 

@@ -1,7 +1,7 @@
 /**
  * Vue GitHub Assets - 类型定义 / Type Definitions
  */
-import type { Ref, ComputedRef, MaybeRefOrGetter } from 'vue';
+import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue';
 
 // ============================================
 // Configuration Types
@@ -271,10 +271,34 @@ export interface AssetUploaderProps {
 // Event Types
 // ============================================
 
+/**
+ * 资源操作结果 / Asset operation result
+ */
+export interface AssetOperationResult {
+    /** 资源链接 / Asset URL */
+    url: string;
+    /** 资源项 / Asset item */
+    item: AssetItem;
+}
+
+/**
+ * 复制格式类型 / Copy format type
+ */
+export type CopyFormat = 'url' | 'markdown' | 'html';
+
+/**
+ * AssetManager 组件事件 / AssetManager component events
+ */
 export interface AssetManagerEmits {
-    select: [url: string, item: AssetItem];
-    upload: [result: UploadResult];
-    delete: [item: AssetItem];
+    /** 确认选择时触发 / Triggered when confirming selection */
+    confirm: [urls: string[], items: AssetItem[]];
+    /** 上传成功后触发 / Triggered after successful upload */
+    upload: [results: AssetOperationResult[]];
+    /** 删除成功后触发 / Triggered after successful deletion */
+    delete: [results: AssetOperationResult[]];
+    /** 复制链接时触发 / Triggered when copying link */
+    copy: [content: string, format: CopyFormat, item: AssetItem];
+    /** 操作出错时触发 / Triggered on error */
     error: [error: Error];
 }
 
@@ -282,3 +306,4 @@ export interface AssetUploaderEmits {
     upload: [results: UploadResult[]];
     error: [error: Error];
 }
+
