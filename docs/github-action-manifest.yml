@@ -1,0 +1,146 @@
+# GitHub Action: Update Asset Manifest
+#
+# This workflow runs on every push to the main branch and updates
+# the .vga-manifest.json file to keep track of all images in the repo.
+#
+# Copy this file to your images repository at:
+# .github/workflows/update-manifest.yml
+
+name: Update Asset Manifest
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - ".vga-manifest.json"
+      - ".github/**"
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  update-manifest:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate Manifest
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const crypto = require('crypto');
+
+          // Configuration
+          const IGNORE = ['.git', '.github', 'scripts', 'node_modules', '.vga-manifest.json'];
+          const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico'];
+
+          // Scan directory recursively
+          function scanDir(dir, basePath = '') {
+            const files = [];
+            const folders = [];
+            
+            let entries;
+            try {
+              entries = fs.readdirSync(dir, { withFileTypes: true });
+            } catch (e) {
+              console.warn(`Could not read directory: ${dir}`);
+              return { files, folders };
+            }
+            
+            for (const entry of entries) {
+              if (IGNORE.includes(entry.name) || entry.name.startsWith('.')) continue;
+              
+              const fullPath = path.join(dir, entry.name);
+              const relativePath = basePath ? path.join(basePath, entry.name) : entry.name;
+              
+              if (entry.isDirectory()) {
+                folders.push(relativePath);
+                const sub = scanDir(fullPath, relativePath);
+                files.push(...sub.files);
+                folders.push(...sub.folders);
+              } else if (IMAGE_EXTS.includes(path.extname(entry.name).toLowerCase())) {
+                const stat = fs.statSync(fullPath);
+                const content = fs.readFileSync(fullPath);
+                const sha = crypto.createHash('sha1').update(content).digest('hex');
+                
+                files.push({
+                  name: entry.name,
+                  path: relativePath.replace(/\\/g, '/'), // Normalize path separators
+                  size: stat.size,
+                  sha: sha,
+                  mimeType: getMimeType(entry.name),
+                });
+              }
+            }
+            
+            return { files, folders: [...new Set(folders)] };
+          }
+
+          // Get MIME type from extension
+          function getMimeType(filename) {
+            const ext = path.extname(filename).toLowerCase();
+            const mimeTypes = {
+              '.jpg': 'image/jpeg',
+              '.jpeg': 'image/jpeg',
+              '.png': 'image/png',
+              '.gif': 'image/gif',
+              '.webp': 'image/webp',
+              '.svg': 'image/svg+xml',
+              '.ico': 'image/x-icon',
+            };
+            return mimeTypes[ext] || 'application/octet-stream';
+          }
+
+          // Main
+          console.log('Scanning directory for images...');
+          const { files, folders } = scanDir('.');
+
+          const manifest = {
+            version: '1.0.0',
+            lastUpdated: new Date().toISOString(),
+            lastSyncedSha: process.env.GITHUB_SHA || '',
+            files: files.sort((a, b) => a.path.localeCompare(b.path)),
+            folders: folders.filter(f => f).sort(),
+          };
+
+          fs.writeFileSync('.vga-manifest.json', JSON.stringify(manifest, null, 2));
+          console.log(`✅ Generated manifest: ${files.length} files, ${folders.length} folders`);
+
+          // Print summary
+          console.log('\nFiles by type:');
+          const byType = {};
+          for (const f of files) {
+            const ext = path.extname(f.name).toLowerCase();
+            byType[ext] = (byType[ext] || 0) + 1;
+          }
+          for (const [ext, count] of Object.entries(byType)) {
+            console.log(`  ${ext}: ${count}`);
+          }
+          EOF
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --quiet .vga-manifest.json || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changed
+        if: steps.git-check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .vga-manifest.json
+          git commit -m "chore: update asset manifest [skip ci]"
+          git push
