@@ -445,7 +445,6 @@ export function useUploader(options: UseUploaderOptions) {
         uploading.value = true;
         error.value = null;
 
-        const results: UploadResult[] = [];
         const pathsToDelete = new Set(items.map(i => i.path));
 
         try {
