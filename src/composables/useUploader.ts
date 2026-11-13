@@ -104,10 +104,10 @@ export function useUploader(options: UseUploaderOptions) {
         const extension = file.name.split('.').pop()?.toLowerCase() || '';
         const newFileName = `${timestamp}.${extension}`;
 
-        // 构建路径：直接使用传入的 folder 作为目标路径
-        // Build path: use the passed folder directly as target path
-        const targetFolder = folder || '';
-        const path = targetFolder ? `${targetFolder}/${newFileName}` : newFileName;
+        // 构建路径：basePath（若配置）+ 传入的 folder + 时间戳文件名
+        // Build path: basePath (if configured) + passed folder + timestamp filename
+        const segments = [config.basePath, folder].filter(Boolean) as string[];
+        const path = [...segments, newFileName].join('/');
 
         // 清理双斜杠 / Clean up any double slashes
         return path.replace(/\/+/g, '/').replace(/^\//, '');

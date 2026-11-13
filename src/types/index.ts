@@ -21,6 +21,8 @@ export interface StoreConfig {
     branch?: string;
     /** 初始展示路径 (默认: '' 即根目录) / Initial display path (default: '' for root) */
     initialPath?: string;
+    /** 上传根目录 (默认: '' 即仓库根目录)，会拼在上传路径最前面 / Upload root directory (default: '' for repo root), prepended to the upload path */
+    basePath?: string;
     /** 自定义上传文件路径生成器 / Custom path generator for uploaded files */
     generatePath?: (file: File) => string;
 }
