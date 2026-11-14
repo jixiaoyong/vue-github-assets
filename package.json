@@ -50,7 +50,7 @@
     "vite-plugin-dts": "^4.0.0",
     "vite-plugin-lib-inject-css": "^2.2.2",
     "vitest": "^4.1.12",
-    "vue": "^3.5.0",
+    "vue": "^3.5.42",
     "vue-tsc": "^2.0.0"
   },
   "keywords": [
